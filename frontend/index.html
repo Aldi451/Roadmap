@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Roadmap Pro | Fortunasuite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <style>
+        :root {
+            --sat-color: #ff00ff; --sun-color: #ff0000;
+            --color-completed: #00c853; --color-scheduled: #a5d6a7; --color-progress: #ffb300;
+            --brand-blue: #15a4dc;
+            --sidebar-w: 435px;
+        }
+        body { font-family: 'Arial', sans-serif; background-color: #f8fafc; color: #1e293b; overflow: hidden; font-size: 11px; }
+        
+        .gantt-container { width: 100%; height: calc(100vh - 180px); background: white; border-radius: 20px; border: 1px solid #e2e8f0; position: relative; overflow: auto; scroll-behavior: smooth; }
+        .task-list-wrapper { display: inline-flex; flex-direction: column; min-width: 100%; position: relative; }
+        
+        .col-fix { flex-shrink: 0; flex-grow: 0; display: flex; align-items: center; justify-content: center; }
+        .w-chk { width: 45px; } .w-cod { width: 90px; } .w-des { width: 300px; justify-content: flex-start; padding-left: 0.5rem; padding-right: 0.5rem; } 
+        .w-dat { width: 85px; } .w-day { width: 40px; font-family: 'JetBrains Mono', monospace; } .w-prg { width: 110px; } .w-sts { width: 130px; } .w-not { width: 450px; justify-content: flex-start; padding-left: 1rem; } .w-tic { width: 30px; }
+
+        .task-header { height: 60px; position: sticky; top: 0; z-index: 3000; background: #f8fafc; display: flex; border-bottom: 2px solid #e2e8f0; }
+        .sticky-sidebar { position: sticky; left: 0; z-index: 2500; background: white !important; border-right: 4px solid #f1f5f9; display: flex; flex-shrink: 0; width: var(--sidebar-w); box-shadow: 10px 0 15px -10px rgba(0,0,0,0.05); opacity: 1 !important; }
+        
+        .task-row { height: 25px; display: flex; align-items: stretch; }
+        .task-row:hover { background: #fcfdfe; }
+        
+        .header-col-group { display: flex; flex-direction: column; }
+        .header-row-top { height: 30px; display: flex; border-bottom: 1px solid #e2e8f0; align-items: center; }
+        .header-row-bottom { height: 30px; display: flex; align-items: center; }
+
+        .is-sat { background-color: var(--sat-color) !important; color: white !important; }
+        .is-sun { background-color: var(--sun-color) !important; color: white !important; }
+
+        /* 50:50 Bar System */
+        .bar-planned { height: 12.5px; position: absolute; top: 0; z-index: 10; background: #e2e8f0; pointer-events: none; opacity: 1; border-radius: 0; }
+        .bar-actual { height: 12.5px; position: absolute; top: 12.5px; z-index: 20; pointer-events: none; border-radius: 0; opacity: 1; }
+        
+        .glass-task-badge { background: rgba(30, 41, 59, 0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.15); color: #ffffff; font-size: 9px; font-weight: 700; padding: 2.5px 8px; border-radius: 20px; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.8); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); pointer-events: none; z-index: 30; }
+        
+        .bar-completed { background-color: var(--color-completed) !important; }
+        .bar-scheduled { background-color: var(--color-scheduled) !important; }
+        .bar-progress { background-color: var(--color-progress) !important; }
+
+        .status-completed { background-color: var(--color-completed) !important; color: white !important; }
+        .status-scheduled { background-color: var(--color-scheduled) !important; color: #1b5e20 !important; }
+        .status-progress { background-color: var(--color-progress) !important; color: white !important; }
+
+        .date-picker-input { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 2px; font-size: 11px; font-weight: 800; width: 100%; text-align: center; color: #1e293b; outline: none; transition: all 0.2s; height: 19px; line-height: 1; }
+        .date-picker-input:focus { border-color: #6366f1; background: white; box-shadow: 0 0 0 1px rgba(99,102,241,0.1); }
+
+        .glass-progress-card { position: absolute; width: 68px; background: rgba(255, 255, 255, 0.3); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 10px; box-shadow: 0 4px 16px 0 rgba(31, 38, 135, 0.1); overflow: hidden; z-index: 50; pointer-events: none; transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .glass-fill { position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background: linear-gradient(180deg, var(--brand-blue) 0%, #1080ac 100%); transition: height 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        .glass-percentage { position: absolute; top: 50%; left: 0; width: 100%; transform: translateY(-50%); text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 900; z-index: 1100; pointer-events: none; transition: color 0.3s ease; }
+
+        .glass-progress-card.is-badge { height: 32px !important; border-radius: 8px; }
+
+        .phase-toggle { cursor: pointer; transition: transform 0.2s; }
+        .phase-toggle.collapsed { transform: rotate(-90deg); }
+
+        .custom-select { background: transparent; border: none; font-size: 11px; font-weight: 800; width: 100%; text-align: center; outline: none; cursor: pointer; padding: 0; appearance: none; }
+
+        .save-indicator { transition: all 0.3s; opacity: 0; transform: translateY(10px); }
+        .save-indicator.visible { opacity: 1; transform: translateY(0); }
+
+        [v-cloak] { display: none; }
+    </style>
+</head>
+<body class="p-6">
+    <div id="app" v-cloak>
+        <div class="mb-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <img src="official_logo.png" alt="Logo" class="h-14 w-auto object-contain" style="mix-blend-mode: multiply;">
+                <div><h1 class="text-xl font-black text-slate-900 tracking-tighter">{{ roadmap.project_name }}</h1><p class="text-[8px] font-black text-slate-400 tracking-widest">Enterprise Strategic Roadmap</p></div>
+            </div>
+            <!-- Save Status Indicator -->
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-full text-[9px] font-black tracking-tighter transition-all" :class="{'text-indigo-600': isSaving, 'text-emerald-600': !isSaving && lastSaved}">
+                <i :data-lucide="isSaving ? 'refresh-cw' : 'check-circle'" class="w-3 h-3" :class="{'animate-spin': isSaving}"></i>
+                <span>{{ isSaving ? 'Saving Changes...' : (lastSaved ? 'All changes saved' : 'Waiting for input') }}</span>
+            </div>
+        </div>
+
+        <div class="mb-4 flex items-center justify-between gap-4">
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm px-4 py-2 flex items-center gap-3">
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Timeline:</span>
+                <select v-model.number="startMonth" @change="markAsChanged" class="bg-slate-50 rounded px-1.5 py-0.5 text-[10px] font-black outline-none"><option v-for="(m, i) in months" :key="i" :value="i">{{ m }}</option></select>
+                <span class="text-[9px] font-black text-slate-300">to</span>
+                <select v-model.number="endMonth" @change="markAsChanged" class="bg-slate-50 rounded px-1.5 py-0.5 text-[10px] font-black outline-none"><option v-for="(m, i) in months" :key="i" :value="i">{{ m }}</option></select>
+                <input type="number" v-model.number="currentYear" @input="markAsChanged" class="w-14 bg-slate-50 rounded px-1.5 py-0.5 text-[10px] font-black text-center outline-none" />
+            </div>
+            <div class="flex items-center gap-4 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[9px] font-black text-slate-500 shadow-sm">
+                <span class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm bg-slate-200 border border-slate-300"></div> Planned</span>
+                <span class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm" style="background-color: var(--color-completed)"></div> Completed</span>
+                <span class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm" style="background-color: var(--color-progress)"></div> On Progress</span>
+                <span class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm" style="background-color: var(--color-scheduled)"></div> Scheduled</span>
+            </div>
+        </div>
+
+        <div class="gantt-container">
+            <div class="task-list-wrapper">
+                <div class="task-header">
+                    <div class="sticky-sidebar !bg-slate-100">
+                        <div class="header-col-group">
+                            <div class="header-row-top text-[9px] font-black text-slate-400 tracking-widest"><span class="col-fix w-chk"></span><span class="col-fix w-cod"></span><span class="col-fix w-des">Task Identification</span></div>
+                            <div class="header-row-bottom text-[8px] font-black text-slate-400"><span class="col-fix w-chk h-full"><i data-lucide="check-square" class="w-3 h-3"></i></span><span class="col-fix w-cod">Code</span><span class="col-fix w-des">Task Description</span></div>
+                        </div>
+                    </div>
+                    <div class="header-col-group">
+                        <div class="header-row-top text-[9px] font-black">
+                            <span class="col-fix w-dat border-l border-slate-200 bg-indigo-50 text-indigo-600">Sched Start</span>
+                            <span class="col-fix w-dat bg-indigo-50 text-indigo-600">Sched Finish</span>
+                            <span class="col-fix w-day bg-indigo-50 text-indigo-600">Days</span>
+                            <span class="col-fix w-dat border-l border-slate-200 bg-blue-50 text-blue-600">Actual Start</span>
+                            <span class="col-fix w-dat bg-blue-50 text-blue-600">Actual Finish</span>
+                            <span class="col-fix w-day bg-blue-50 text-blue-600">Days</span>
+                            <span class="col-fix w-prg border-l border-slate-200 bg-blue-600 text-white">Sub Prog</span>
+                            <span class="col-fix w-prg border-l border-slate-200 bg-indigo-700 text-white">Total Prog</span>
+                            <span class="col-fix w-sts border-l border-slate-200">Status</span>
+                            <span class="col-fix w-not border-l border-slate-200">Remarks</span>
+                            <div v-for="m in monthGroups" :key="m.name + m.year" class="col-fix border-l border-slate-200 h-full p-1" :style="{ width: (m.daysCount * 30) + 'px' }">
+                                <span class="bg-slate-100 px-2 py-0.5 rounded-full text-[8px] font-black tracking-tighter">{{ m.name }} {{ m.year }}</span>
+                            </div>
+                        </div>
+                        <div class="header-row-bottom text-[8px] font-black text-slate-400">
+                            <span class="col-fix w-dat border-l border-slate-100">Date</span>
+                            <span class="col-fix w-dat border-l border-slate-100">Date</span>
+                            <span class="col-fix w-day border-l border-slate-100">Count</span>
+                            <span class="col-fix w-dat border-l border-slate-100 text-blue-600">Date</span>
+                            <span class="col-fix w-dat border-l border-slate-100 text-blue-600">Date</span>
+                            <span class="col-fix w-day border-l border-slate-100 text-blue-600">Count</span>
+                            <span class="col-fix w-prg border-l border-slate-200 bg-blue-600 text-white">% Actual</span>
+                            <span class="col-fix w-prg border-l border-slate-200 bg-indigo-700 text-white">% Actual</span>
+                            <span class="col-fix w-sts border-l border-slate-100">Tracking</span>
+                            <span class="col-fix w-not border-l border-slate-100">Info</span>
+                            <div v-for="d in daysInPeriod" :key="d.date" class="col-fix w-tic border-l border-slate-100" :class="getDayClass(d)">
+                                <span class="text-[9px] font-black">{{ d.dayNum }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Floating Phase Progress Cards -->
+                <div v-for="(p, idx) in filteredPhases" :key="'pcard-'+p.code">
+                    <div v-if="!p.isCollapsed" class="glass-progress-card" :style="getPhaseCardStyle(idx)">
+                        <div class="glass-fill" :style="{height: calculatePhaseProgress(p, updateTrigger) + '%'}"></div>
+                        <div class="glass-percentage" :style="{ color: calculatePhaseProgress(p, updateTrigger) > 50 ? '#ffffff' : '#000000' }">
+                            {{ calculatePhaseProgress(p, updateTrigger).toFixed(0) }}%
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Adaptive Grand Total Component -->
+                <div v-if="roadmap.phases && roadmap.phases.length > 0" 
+                     class="glass-progress-card" 
+                     :class="{ 'is-badge': roadmap.phases.every(p => p.isCollapsed) }"
+                     :style="grandTotalStyle">
+                    <div v-if="!roadmap.phases.every(p => p.isCollapsed)" class="glass-fill" :style="{height: calculateGrandTotalProgress(updateTrigger) + '%'}"></div>
+                    <div class="glass-percentage" :style="{ color: (!roadmap.phases.every(p => p.isCollapsed) && calculateGrandTotalProgress(updateTrigger) > 50) ? '#ffffff' : '#000000' }">
+                        {{ calculateGrandTotalProgress(updateTrigger).toFixed(0) }}%
+                    </div>
+                </div>
+
+                <div v-for="(phase, phaseIdx) in filteredPhases" :key="phase.code">
+                    <div class="task-row group">
+                        <div class="sticky-sidebar !bg-white cursor-pointer border-y border-slate-300" @click="phase.isCollapsed = !phase.isCollapsed; markAsChanged()">
+                            <span class="col-fix w-chk h-full"><i data-lucide="chevron-down" class="w-3 h-3 text-slate-500 phase-toggle" :class="{ collapsed: phase.isCollapsed }"></i></span>
+                            <span class="col-fix w-cod font-black text-[10px] tracking-tighter text-indigo-600">{{ phase.code }}</span>
+                            <span class="col-fix w-des flex items-center gap-2 font-black text-slate-900 text-[11px] tracking-tighter"><i data-lucide="folder" class="w-4 h-4 text-indigo-600"></i> {{ phase.name }}</span>
+                        </div>
+                        <div class="flex items-stretch border-y border-slate-300">
+                            <div class="flex bg-slate-50">
+                                <span class="col-fix w-dat"></span><span class="col-fix w-dat"></span>
+                                <span class="col-fix w-day text-[9px] font-black text-slate-400"><span v-if="phase.isCollapsed">{{ calculatePhaseTotalDays(phase).scheduled }}</span></span>
+                                <span class="col-fix w-dat"></span><span class="col-fix w-dat"></span>
+                                <span class="col-fix w-day text-[9px] font-black text-indigo-600"><span v-if="phase.isCollapsed">{{ calculatePhaseTotalDays(phase).actual }}</span></span>
+                                <span class="col-fix w-prg border-l border-slate-300">
+                                    <span v-if="phase.isCollapsed" class="text-[10px] font-black text-sky-700">{{ calculatePhaseProgress(phase, updateTrigger).toFixed(0) }}%</span>
+                                </span>
+                                <span class="col-fix w-prg border-l border-slate-300"></span>
+                                <span class="col-fix w-sts border-l border-slate-300"></span>
+                                <span class="col-fix w-not border-l border-slate-300"></span>
+                            </div>
+                            <!-- Grid for Phase rows: Matches task grid colors -->
+                            <div v-for="d in daysInPeriod" :key="d.date" class="col-fix w-tic border-l border-slate-100" :class="getDayClass(d)"></div>
+                        </div>
+                    </div>
+                    <template v-for="(task, taskIdx) in phase.tasks" :key="task.code">
+                        <div v-show="!phase.isCollapsed" class="task-row">
+                            <div class="sticky-sidebar !bg-white border-b border-slate-100"><div class="flex w-full h-full" :class="{'opacity-50': !task.is_active}"><div class="col-fix w-chk h-full"><input type="checkbox" v-model="task.is_active" @change="markAsChanged(task)" class="w-3 h-3 rounded cursor-pointer accent-indigo-600"></div><span class="col-fix w-cod font-medium text-[10px] tracking-tighter text-slate-400">{{ task.code }}</span><span class="col-fix w-des font-medium text-slate-800 text-[11px] flex justify-between items-center pr-2"><span class="truncate">{{ task.name }}</span><div class="flex gap-1"><button @click.stop="openSubtaskManager(task)" class="hover:bg-slate-100 p-1 rounded transition-colors flex-shrink-0 text-slate-400 hover:text-indigo-600" title="Manage Sub-tasks"><i data-lucide="settings-2" class="w-3 h-3"></i></button><button @click.stop="openCommentModal(task)" class="hover:bg-slate-100 p-1 rounded transition-colors flex-shrink-0" :title="getCommentCount(task.note) + ' Komentar'"><i data-lucide="message-square" class="w-3 h-3" :class="getCommentCount(task.note) > 0 ? 'text-indigo-600 fill-indigo-100' : 'text-slate-400'"></i></button></div></span></div></div>
+                            <div class="flex items-stretch border-b border-slate-100" :class="{'opacity-50': !task.is_active}">
+                                <div class="col-fix w-dat border-l border-slate-100 p-0.5"><input v-datepicker v-model="task.start_date" @input="markAsChanged(task)" class="date-picker-input" placeholder="dd/mm/yyyy"></div>
+                                <div class="col-fix w-dat border-l border-slate-100 p-0.5"><input v-datepicker v-model="task.finish_date" @input="markAsChanged(task)" class="date-picker-input" placeholder="dd/mm/yyyy"></div>
+                                <span class="col-fix w-day border-l border-slate-100 text-[9px] font-black" :class="calculateDays(task.start_date, task.finish_date) === 0 ? 'text-slate-300' : 'text-slate-400'">{{ calculateDays(task.start_date, task.finish_date, updateTrigger) }}</span>
+                                <div class="col-fix w-dat border-l border-slate-100 p-0.5"><input v-datepicker v-model="task.actual_start" @input="markAsChanged(task)" class="date-picker-input" placeholder="dd/mm/yyyy"></div>
+                                <div class="col-fix w-dat border-l border-slate-100 p-0.5"><input v-datepicker v-model="task.actual_finish" @input="markAsChanged(task)" class="date-picker-input" placeholder="dd/mm/yyyy"></div>
+                                <span class="col-fix w-day border-l border-slate-100 text-[9px] font-black" :class="calculateDays(task.actual_start, task.actual_finish) === 0 ? 'text-slate-300' : 'text-indigo-600'">{{ calculateDays(task.actual_start, task.actual_finish, updateTrigger) }}</span>
+                                
+                                <div class="col-fix w-prg border-l border-slate-200 relative bg-slate-50/20"></div>
+                                <div class="col-fix w-prg border-l border-slate-200 relative bg-slate-50/20"></div>
+                                
+                                <div class="col-fix w-sts border-l border-slate-100" :class="getStatusClass(task.status)"><select v-model="task.status" @change="markAsChanged(task)" class="custom-select" :class="getStatusClass(task.status)"><option value="Scheduled">Scheduled</option><option value="On Progress">On Progress</option><option value="Completed">Completed</option></select></div>
+                                <div class="col-fix w-not border-l border-slate-100 px-2 cursor-pointer" @click="openCommentModal(task)"><input :value="task.note" readonly class="w-full bg-transparent border-none text-slate-500 italic text-[10px] font-medium cursor-pointer" placeholder="Klik untuk komentar..."></div>
+                                <div class="flex relative overflow-hidden"><div v-for="d in daysInPeriod" :key="d.date" class="col-fix w-tic border-l border-slate-100" :class="getDayClass(d)"></div><div v-if="task.start_date && task.is_active" class="bar-planned" :style="getBarStyle(task.start_date, task.finish_date)  || {display: 'none'}"></div><div v-if="task.is_active" class="bar-actual" :class="getBarStatusClass(task.status)" :style="getBarStyle(task.actual_start || task.start_date, task.actual_finish || task.finish_date)  || {display: 'none'}"></div><div v-if="task.start_date && task.is_active" class="absolute top-0 bottom-0 z-30 flex items-center justify-center pointer-events-none" :style="getBarStyle(task.start_date, task.finish_date) || {display: 'none'}"><div class="glass-task-badge">{{ task.name }}</div></div></div>
+                            </div>
+                        </div>
+                        <template v-if="task.sub_tasks && task.sub_tasks.length > 0">
+                            <template v-for="(subTask, subIdx) in task.sub_tasks" :key="subTask.code">
+                                <div v-show="!phase.isCollapsed && subTask.is_active" class="task-row bg-slate-50/50">
+                                    <div class="sticky-sidebar !bg-slate-50 border-b border-slate-100"><div class="flex w-full h-full" :class="{'opacity-50': !subTask.is_active}"><div class="col-fix w-chk h-full"><input type="checkbox" v-model="subTask.is_active" @change="markAsChanged(subTask)" class="w-3 h-3 rounded cursor-pointer accent-indigo-600"></div><span class="col-fix w-cod font-medium text-[10px] tracking-tighter text-slate-400 pl-3">↳ {{ subTask.code }}</span><span class="col-fix w-des font-medium text-slate-700 text-[10px] flex justify-between items-center pr-2"><span class="truncate">{{ subTask.name }}</span><button @click.stop="openCommentModal(subTask)" class="hover:bg-slate-100 p-1 rounded transition-colors flex-shrink-0" :title="getCommentCount(subTask.note) + ' Komentar'"><i data-lucide="message-square" class="w-3 h-3" :class="getCommentCount(subTask.note) > 0 ? 'text-indigo-600 fill-indigo-100' : 'text-slate-400'"></i></button></span></div></div>
+                                    <div class="flex items-stretch border-b border-slate-100" :class="{'opacity-50': !subTask.is_active}">
+                                        <div class="col-fix w-dat border-l border-slate-100 p-0.5"><input v-datepicker v-model="subTask.start_date" @input="markAsChanged(subTask)" class="date-picker-input" placeholder="dd/mm/yyyy"></div>
+                                        <div class="col-fix w-dat border-l border-slate-100 p-0.5"><input v-datepicker v-model="subTask.finish_date" @input="markAsChanged(subTask)" class="date-picker-input" placeholder="dd/mm/yyyy"></div>
+                                        <span class="col-fix w-day border-l border-slate-100 text-[9px] font-black" :class="calculateDays(subTask.start_date, subTask.finish_date) === 0 ? 'text-slate-300' : 'text-slate-400'">{{ calculateDays(subTask.start_date, subTask.finish_date, updateTrigger) }}</span>
+                                        <div class="col-fix w-dat border-l border-slate-100 p-0.5"><input v-datepicker v-model="subTask.actual_start" @input="markAsChanged(subTask)" class="date-picker-input" placeholder="dd/mm/yyyy"></div>
+                                        <div class="col-fix w-dat border-l border-slate-100 p-0.5"><input v-datepicker v-model="subTask.actual_finish" @input="markAsChanged(subTask)" class="date-picker-input" placeholder="dd/mm/yyyy"></div>
+                                        <span class="col-fix w-day border-l border-slate-100 text-[9px] font-black" :class="calculateDays(subTask.actual_start, subTask.actual_finish) === 0 ? 'text-slate-300' : 'text-indigo-600'">{{ calculateDays(subTask.actual_start, subTask.actual_finish, updateTrigger) }}</span>
+                                        
+                                        <div class="col-fix w-prg border-l border-slate-200 relative bg-slate-50/20"></div>
+                                        <div class="col-fix w-prg border-l border-slate-200 relative bg-slate-50/20"></div>
+                                        
+                                        <div class="col-fix w-sts border-l border-slate-100" :class="getStatusClass(subTask.status)"><select v-model="subTask.status" @change="markAsChanged(subTask)" class="custom-select" :class="getStatusClass(subTask.status)"><option value="Scheduled">Scheduled</option><option value="On Progress">On Progress</option><option value="Completed">Completed</option></select></div>
+                                        <div class="col-fix w-not border-l border-slate-100 px-2 cursor-pointer" @click="openCommentModal(subTask)"><input :value="subTask.note" readonly class="w-full bg-transparent border-none text-slate-500 italic text-[10px] font-medium cursor-pointer" placeholder="Klik untuk komentar..."></div>
+                                        <div class="flex relative overflow-hidden"><div v-for="d in daysInPeriod" :key="d.date" class="col-fix w-tic border-l border-slate-100" :class="getDayClass(d)"></div><div v-if="subTask.start_date && subTask.is_active" class="bar-planned" :style="getBarStyle(subTask.start_date, subTask.finish_date)  || {display: 'none'}"></div><div v-if="subTask.is_active" class="bar-actual" :class="getBarStatusClass(subTask.status)" :style="getBarStyle(subTask.actual_start || subTask.start_date, subTask.actual_finish || subTask.finish_date)  || {display: 'none'}"></div><div v-if="subTask.start_date && subTask.is_active" class="absolute top-0 bottom-0 z-30 flex items-center justify-center pointer-events-none" :style="getBarStyle(subTask.start_date, subTask.finish_date) || {display: 'none'}"><div class="glass-task-badge">{{ subTask.name }}</div></div></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
+                    </template>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sub-task Manager Modal -->
+        <div v-if="activeManageTask" class="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm" @click.self="closeSubtaskManager">
+            <div class="bg-white rounded-xl shadow-2xl w-[600px] border border-slate-200 overflow-hidden flex flex-col transform transition-all max-h-[80vh]">
+                <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i data-lucide="settings-2" class="w-4 h-4 text-indigo-600"></i> Manage Sub-Tasks: {{ activeManageTask.name }}</h3>
+                    <button @click="closeSubtaskManager" class="text-slate-400 hover:text-slate-600 transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+                
+                <div class="p-4 overflow-y-auto flex flex-col gap-4 bg-slate-50/50">
+                    <div v-for="(subtasks, groupName) in groupedSubtasks" :key="groupName" class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                        <div class="font-bold text-xs text-indigo-700 mb-3 border-b border-slate-100 pb-2 uppercase tracking-wider">{{ groupName }}</div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label v-for="st in subtasks" :key="st.code" class="flex items-start gap-2 p-2 hover:bg-slate-50 rounded cursor-pointer border border-transparent hover:border-slate-100 transition-colors" :class="{'opacity-50': !st.is_active}">
+                                <input type="checkbox" v-model="st.is_active" @change="toggleSubtask(st)" class="mt-0.5 w-3 h-3 rounded cursor-pointer accent-indigo-600">
+                                <div class="flex flex-col">
+                                    <span class="text-[10px] font-bold text-slate-500">{{ st.real_code }}</span>
+                                    <span class="text-[11px] font-medium text-slate-700 leading-tight">{{ st.name }}</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    <div v-if="Object.keys(groupedSubtasks).length === 0" class="text-center text-slate-400 text-xs py-4 italic">Tidak ada sub-task untuk dikelola.</div>
+                </div>
+
+                <div class="p-4 border-t border-slate-100 bg-white flex justify-end">
+                    <button @click="closeSubtaskManager" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg text-xs transition-colors flex items-center justify-center gap-2">
+                        <i data-lucide="check" class="w-3 h-3"></i> Selesai
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Comment Modal -->
+        <div v-if="activeCommentTask" class="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm" @click.self="closeCommentModal">
+            <div class="bg-white rounded-xl shadow-2xl w-[450px] border border-slate-200 overflow-hidden flex flex-col transform transition-all">
+                <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i data-lucide="message-square" class="w-4 h-4 text-indigo-600"></i> Komentar: {{ activeCommentTask.name }}</h3>
+                    <button @click="closeCommentModal" class="text-slate-400 hover:text-slate-600 transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+                </div>
+                
+                <div class="p-4 max-h-[300px] overflow-y-auto flex flex-col gap-3 bg-slate-50/50">
+                    <div v-for="(c, i) in parsedActiveComments" :key="i" class="bg-white p-3 rounded-lg border border-slate-100 shadow-sm relative group">
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-indigo-700 text-[10px]">{{ c.name }}</span>
+                                <span class="text-[8px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded uppercase tracking-wider font-bold">{{ c.dept }}</span>
+                            </div>
+                            <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button @click="editComment(i)" class="text-slate-400 hover:text-indigo-600" title="Edit"><i data-lucide="edit-2" class="w-3 h-3"></i></button>
+                                <button @click="deleteComment(i)" class="text-slate-400 hover:text-red-600" title="Delete"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+                            </div>
+                        </div>
+                        <p class="text-slate-600 text-[11px] leading-relaxed whitespace-pre-wrap">{{ c.text }}</p>
+                    </div>
+                    <div v-if="parsedActiveComments.length === 0" class="text-center text-slate-400 text-xs py-4 italic">Belum ada komentar untuk task ini.</div>
+                </div>
+
+                <div class="p-4 border-t border-slate-100 bg-white flex flex-col gap-2">
+                    <div class="flex gap-2">
+                        <input v-model="newComment.name" placeholder="Nama..." class="flex-1 text-[11px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:bg-white transition-colors font-medium text-slate-700">
+                        <input v-model="newComment.dept" placeholder="Departemen..." class="flex-1 text-[11px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:bg-white transition-colors font-medium text-slate-700">
+                    </div>
+                    <textarea v-model="newComment.text" placeholder="Tulis komentar..." rows="2" class="w-full text-[11px] px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-400 focus:bg-white transition-colors resize-none text-slate-700"></textarea>
+                    <div class="flex gap-2 mt-1">
+                        <button v-if="editingCommentIndex >= 0" @click="cancelEdit" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2 rounded-lg text-xs transition-colors">Batal Edit</button>
+                        <button @click="saveNewComment" :disabled="!newComment.name || !newComment.dept || !newComment.text" class="flex-[2] bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-bold py-2 rounded-lg text-xs transition-colors flex items-center justify-center gap-2">
+                            <i data-lucide="send" class="w-3 h-3"></i> {{ editingCommentIndex >= 0 ? 'Update Komentar' : 'Kirim Komentar' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+        createApp({
+            setup() {
+                const roadmap = ref({ phases: [] });
+                const updateTrigger = ref(0);
+                const isSaving = ref(false);
+                const lastSaved = ref(null);
+                const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                const currentYear = ref(2025), startMonth = ref(0), endMonth = ref(11);
+                // Sub-task Manager state
+                const activeManageTask = ref(null);
+                
+                const masterSubtasks = [
+                    { code: "FOS", name: "FO Setup", group: "FO" }, { code: "FOT", name: "FO Training", group: "FO" },
+                    { code: "POS", name: "POS Setup", group: "POS" }, { code: "POT", name: "POS Training", group: "POS" },
+                    { code: "ARS", name: "AR Setup", group: "AR" }, { code: "ART", name: "AR Training", group: "AR" },
+                    { code: "INS", name: "INV Setup", group: "INV" }, { code: "INT", name: "INV Training", group: "INV" },
+                    { code: "APS", name: "AP Setup", group: "AP" }, { code: "APT", name: "AP Training", group: "AP" },
+                    { code: "GLS", name: "GL Setup", group: "GL" }, { code: "GLT", name: "GL Training", group: "GL" },
+                    { code: "KLI", name: "Keylock Integration", group: "Integrations" }, { code: "PBI", name: "PABX Integration", group: "Integrations" },
+                    { code: "PGD", name: "Power GO Interface", group: "Integrations" }, { code: "DIM", name: "Document Image Manager", group: "Integrations" },
+                    { code: "PNS", name: "PINS Interface", group: "Integrations" }, { code: "CMI", name: "Channel Manager", group: "Integrations" },
+                    { code: "PRM", name: "Pre Live Meeting", group: "Live & Support" }, { code: "LDS", name: "Live Data Status", group: "Live & Support" },
+                    { code: "TRS", name: "Training Status", group: "Live & Support" }, { code: "OSS", name: "On Site Support", group: "Live & Support" }
+                ];
+                
+                const groupedSubtasks = computed(() => {
+                    const groups = {};
+                    const activeTask = activeManageTask.value;
+                    if (!activeTask) return {};
+                    
+                    masterSubtasks.forEach(mst => {
+                        if (!groups[mst.group]) groups[mst.group] = [];
+                        const existing = (activeTask.sub_tasks || []).find(st => st.code.endsWith(mst.code));
+                        groups[mst.group].push({
+                            ...mst,
+                            is_active: existing ? (existing.is_active !== false) : false,
+                            real_code: existing ? existing.code : `${activeTask.code}.${mst.code}`
+                        });
+                    });
+                    
+                    const order = ['FO', 'POS', 'AR', 'INV', 'AP', 'GL', 'Integrations', 'Live & Support'];
+                    const sortedGroups = {};
+                    order.forEach(k => { if (groups[k]) sortedGroups[k] = groups[k]; });
+                    return sortedGroups;
+                });
+
+                const toggleSubtask = (mst) => {
+                    const activeTask = activeManageTask.value;
+                    if (!activeTask.sub_tasks) activeTask.sub_tasks = [];
+                    
+                    let existing = activeTask.sub_tasks.find(st => st.code === mst.real_code);
+                    if (existing) {
+                        existing.is_active = mst.is_active;
+                        markAsChanged(existing);
+                    } else if (mst.is_active) {
+                        const newSt = {
+                            code: mst.real_code, name: mst.name,
+                            start_date: '', finish_date: '', actual_start: '', actual_finish: '',
+                            status: 'Scheduled', note: '', is_active: true,
+                            parent_code: activeTask.code
+                        };
+                        activeTask.sub_tasks.push(newSt);
+                        markAsChanged(newSt);
+                    }
+                };
+
+                const openSubtaskManager = (task) => {
+                    activeManageTask.value = task;
+                    if (window.lucide) setTimeout(() => lucide.createIcons(), 50);
+                };
+
+                const closeSubtaskManager = () => {
+                    activeManageTask.value = null;
+                };
+                
+                // Comments state
+                const activeCommentTask = ref(null);
+                const parsedActiveComments = ref([]);
+                let initialProfile = { name: '', dept: '' };
+                try {
+                    const stored = localStorage.getItem('roadmap_user_profile');
+                    if (stored) {
+                        const parsed = JSON.parse(stored);
+                        if (parsed && typeof parsed === 'object') {
+                            initialProfile.name = parsed.name || '';
+                            initialProfile.dept = parsed.dept || '';
+                        }
+                    }
+                } catch (e) { console.warn("Invalid profile in localStorage", e); }
+                
+                const currentUserProfile = ref(initialProfile);
+                const newComment = ref({ name: currentUserProfile.value.name, dept: currentUserProfile.value.dept, text: '' });
+                const editingCommentIndex = ref(-1);
+
+                const getCommentCount = (noteStr) => {
+                    if (!noteStr) return 0;
+                    return String(noteStr).split('\n').filter(l => l.trim() !== '').length;
+                };
+
+                const openCommentModal = (task) => {
+                    activeCommentTask.value = task;
+                    const lines = String(task.note || '').split('\n').filter(l => l.trim() !== '');
+                    parsedActiveComments.value = lines.map(line => {
+                        const match = line.match(/^(.*?)\|(.*?)\s*:\s*(.*)$/);
+                        if (match) return { name: match[1].trim(), dept: match[2].trim(), text: match[3].trim(), raw: line };
+                        return { name: 'System/Legacy', dept: 'Note', text: line, raw: line };
+                    });
+                    newComment.value = { name: currentUserProfile.value.name, dept: currentUserProfile.value.dept, text: '' };
+                    editingCommentIndex.value = -1;
+                    if (window.lucide) setTimeout(() => lucide.createIcons(), 50);
+                };
+
+                const closeCommentModal = () => { activeCommentTask.value = null; };
+                const cancelEdit = () => {
+                    newComment.value = { name: currentUserProfile.value.name, dept: currentUserProfile.value.dept, text: '' };
+                    editingCommentIndex.value = -1;
+                };
+
+                const saveNewComment = () => {
+                    if (!newComment.value.name || !newComment.value.dept || !newComment.value.text) return;
+                    currentUserProfile.value = { name: newComment.value.name, dept: newComment.value.dept };
+                    localStorage.setItem('roadmap_user_profile', JSON.stringify(currentUserProfile.value));
+                    const formatted = `${newComment.value.name}|${newComment.value.dept} : ${newComment.value.text.replace(/\n/g, ' ')}`;
+                    
+                    if (editingCommentIndex.value >= 0) {
+                        parsedActiveComments.value[editingCommentIndex.value] = { name: newComment.value.name, dept: newComment.value.dept, text: newComment.value.text, raw: formatted };
+                    } else {
+                        parsedActiveComments.value.push({ name: newComment.value.name, dept: newComment.value.dept, text: newComment.value.text, raw: formatted });
+                    }
+                    
+                    activeCommentTask.value.note = parsedActiveComments.value.map(c => c.raw || `${c.name}|${c.dept} : ${c.text.replace(/\n/g, ' ')}`).join('\n');
+                    markAsChanged(activeCommentTask.value);
+                    cancelEdit();
+                    if (window.lucide) setTimeout(() => lucide.createIcons(), 50);
+                };
+
+                const editComment = (index) => {
+                    const c = parsedActiveComments.value[index];
+                    newComment.value = { name: c.name !== 'System/Legacy' ? c.name : currentUserProfile.value.name, dept: c.dept !== 'Note' ? c.dept : currentUserProfile.value.dept, text: c.text };
+                    editingCommentIndex.value = index;
+                };
+
+                const deleteComment = (index) => {
+                    if (confirm('Yakin ingin menghapus komentar ini?')) {
+                        parsedActiveComments.value.splice(index, 1);
+                        activeCommentTask.value.note = parsedActiveComments.value.map(c => c.raw || `${c.name}|${c.dept} : ${c.text.replace(/\n/g, ' ')}`).join('\n');
+                        markAsChanged(activeCommentTask.value);
+                        if (editingCommentIndex.value === index) cancelEdit();
+                        else if (editingCommentIndex.value > index) editingCommentIndex.value--;
+                    }
+                };
+
+                const parseAnyDate = (v) => {
+                    const d = String(v || '').trim();
+                    if (!d || d === '-' || d.toLowerCase() === 'null' || d.startsWith('Date(') || d === 'dd/mm/yyyy') return null;
+                    const ddmmyyyy = d.match(/^(\d{1,2})[\/\.\-](\d{1,2})[\/\.\-](\d{4})$/);
+                    if (ddmmyyyy) return new Date(Date.UTC(parseInt(ddmmyyyy[3]), parseInt(ddmmyyyy[2]) - 1, parseInt(ddmmyyyy[1])));
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) { const [y, m, day] = d.split('-').map(Number); return new Date(Date.UTC(y, m - 1, day)); }
+                    const res = new Date(d); return isNaN(res.getTime()) ? null : res;
+                };
+
+                const calculateDays = (s, f, t = 0) => {
+                    const d1 = parseAnyDate(s), d2 = parseAnyDate(f); 
+                    if (!d1 || !d2) return 0;
+                    const diff = Math.floor((d2.getTime() - d1.getTime()) / 86400000) + 1;
+                    return diff > 0 ? diff : 0;
+                };
+
+                const getItemStats = (item) => {
+                    const sumDays = (i, type) => {
+                        let total = 0;
+                        if (i.sub_tasks && i.sub_tasks.length > 0) i.sub_tasks.forEach(sub => total += sumDays(sub, type));
+                        else total = (type === 'actual') ? (calculateDays(i.actual_start, i.actual_finish) || 0) : (calculateDays(i.start_date, i.finish_date) || 0);
+                        return total;
+                    };
+                    let a = sumDays(item, 'actual'), s = sumDays(item, 'scheduled');
+                    if (s === 0) { a = calculateDays(item.actual_start, item.actual_finish) || 0; s = calculateDays(item.start_date, item.finish_date) || 0; }
+                    return { actual: a, scheduled: s };
+                };
+
+                const calculatePhaseProgress = (p) => { if (!p.tasks || p.tasks.length === 0) return 0; let a = 0, s = 0; p.tasks.forEach(tk => { const st = getItemStats(tk); a += st.actual; s += st.scheduled; }); return s ? (a / s) * 100 : 0; };
+                const calculatePhaseTotalDays = (p) => { if (!p.tasks || p.tasks.length === 0) return { actual: 0, scheduled: 0 }; let a = 0, s = 0; p.tasks.forEach(tk => { const st = getItemStats(tk); a += st.actual; s += st.scheduled; }); return { actual: a, scheduled: s }; };
+                const calculateGrandTotalProgress = () => { let a = 0, s = 0; if (roadmap.value.phases) filteredPhases.value.forEach(p => p.tasks.forEach(tk => { const st = getItemStats(tk); a += st.actual; s += st.scheduled; })); return s ? (a / s) * 100 : 0; };
+
+                const daysInPeriod = computed(() => {
+                    let start = new Date(Date.UTC(currentYear.value, startMonth.value, 1));
+                    let minDate = new Date(start);
+                    let maxDate = new Date(Date.UTC(currentYear.value, startMonth.value + 1, 0));
+                    const checkRange = (t) => {
+                        if (!t.is_active) return;
+                        [t.start_date, t.finish_date, t.actual_start, t.actual_finish].forEach(v => {
+                            const d = parseAnyDate(v);
+                            if (d) {
+                                if (d < minDate) minDate = new Date(d);
+                                if (d > maxDate) maxDate = new Date(d);
+                            }
+                        });
+                        if (t.sub_tasks) t.sub_tasks.forEach(checkRange);
+                    };
+                    if (roadmap.value.phases) {
+                        roadmap.value.phases.forEach(p => p.tasks.forEach(checkRange));
+                    }
+                    const finalStart = new Date(Date.UTC(minDate.getUTCFullYear(), minDate.getUTCMonth(), 1));
+                    const finalEnd = new Date(Date.UTC(maxDate.getUTCFullYear(), maxDate.getUTCMonth() + 1, 0));
+                    const days = []; 
+                    let curr = new Date(finalStart);
+                    while (curr <= finalEnd) {
+                        days.push({ date: `${curr.getUTCFullYear()}-${String(curr.getUTCMonth()+1).padStart(2,'0')}-${String(curr.getUTCDate()).padStart(2,'0')}`, dayNum: curr.getUTCDate(), weekday: curr.getUTCDay(), month: curr.getUTCMonth(), year: curr.getUTCFullYear() });
+                        curr.setUTCDate(curr.getUTCDate() + 1);
+                    }
+                    return days;
+                });
+
+                const monthGroups = computed(() => {
+                    const groups = []; if (daysInPeriod.value.length === 0) return [];
+                    let curM = -1, curY = -1, curG = null;
+                    daysInPeriod.value.forEach(d => { if (d.month !== curM || d.year !== curY) { curM = d.month; curY = d.year; curG = { name: months[d.month], year: d.year, daysCount: 0 }; groups.push(curG); } curG.daysCount++; });
+                    return groups;
+                });
+
+                const filteredPhases = computed(() => roadmap.value.phases || []);
+
+                const grandTotalStyle = computed(() => {
+                    if (!roadmap.value.phases || roadmap.value.phases.length === 0) return { display: 'none' };
+                    let visibleRows = 0;
+                    roadmap.value.phases.forEach(p => {
+                        visibleRows += 1;
+                        if (!p.isCollapsed) visibleRows += p.tasks.length;
+                    });
+                    const allCollapsed = roadmap.value.phases.every(p => p.isCollapsed);
+                    const leftStart = 965;
+                    const cardW = 68;
+                    const colW = 110;
+                    const left = leftStart + (colW - cardW) / 2;
+                    const rowH = 25;
+                    if (allCollapsed) return { top: (60 + (visibleRows * rowH / 2) - 16) + 'px', left: left + 'px', width: cardW + 'px', height: '32px', position: 'absolute', zIndex: 1000 };
+                    return { top: (60 + 4) + 'px', left: left + 'px', width: cardW + 'px', height: (visibleRows * rowH - 8) + 'px', position: 'absolute', zIndex: 1000 };
+                });
+
+                const getPhaseCardStyle = (idx) => {
+                    const rowH = 25;
+                    let topOffset = 60;
+                    for (let i = 0; i < idx; i++) {
+                        topOffset += rowH;
+                        const p = filteredPhases.value[i];
+                        if (!p.isCollapsed) topOffset += p.tasks.length * rowH;
+                    }
+                    topOffset += rowH;
+                    const currentPhase = filteredPhases.value[idx];
+                    const height = currentPhase.tasks.length * rowH;
+                    const leftStart = 855;
+                    const cardW = 68;
+                    const colW = 110;
+                    const left = leftStart + (colW - cardW) / 2;
+                    return { top: (topOffset + 4) + 'px', left: left + 'px', width: cardW + 'px', height: (height - 8) + 'px', position: 'absolute', zIndex: 1000 };
+                };
+
+                const getDayClass = (d) => (d.weekday === 0 ? 'is-sun' : d.weekday === 6 ? 'is-sat' : '');
+                const getStatusClass = (s) => (s === 'Completed' ? 'status-completed' : s === 'On Progress' ? 'status-progress' : s === 'Scheduled' ? 'status-scheduled' : 'status-none');
+                const getBarStatusClass = (s) => (s === 'Completed' ? 'bar-completed' : s === 'On Progress' ? 'bar-progress' : s === 'Scheduled' ? 'bar-scheduled' : 'status-none');
+                
+                const getBarStyle = (s, f) => {
+                    const sd = parseAnyDate(s); let fd = parseAnyDate(f); if (!sd || daysInPeriod.value.length === 0) return null;
+                    if (!fd) fd = sd;
+                    const ps = new Date(daysInPeriod.value[0].date + 'T00:00:00Z');
+                    const left = Math.floor((sd.getTime() - ps.getTime()) / 86400000), dur = Math.floor((fd.getTime() - sd.getTime()) / 86400000) + 1;
+                    return { left: (left * 30) + 'px', width: (Math.max(1, dur) * 30) + 'px' };
+                };
+
+                const commitChanges = async (changedTask = null) => {
+                    if (!roadmap.value.phases || roadmap.value.phases.length === 0) return;
+                    isSaving.value = true;
+                    try {
+                        const ld = JSON.parse(localStorage.getItem('roadmap_local_data') || '{}');
+                        const saveRecursive = (tasks) => {
+                            tasks.forEach(t => {
+                                if (t.code && !t.code.startsWith('row-')) {
+                                    ld[t.code] = { 
+                                        start_date: t.start_date, finish_date: t.finish_date, 
+                                        actual_start: t.actual_start, actual_finish: t.actual_finish, 
+                                        status: t.status, note: t.note, is_active: t.is_active 
+                                    };
+                                }
+                                if (t.sub_tasks && t.sub_tasks.length > 0) saveRecursive(t.sub_tasks);
+                            });
+                        };
+                        roadmap.value.phases.forEach(p => saveRecursive(p.tasks));
+                        localStorage.setItem('roadmap_local_data', JSON.stringify(ld));
+                        localStorage.setItem('roadmap_period', JSON.stringify({ 
+                            startMonth: startMonth.value, 
+                            endMonth: endMonth.value, 
+                            currentYear: currentYear.value 
+                        }));
+                        
+                        if (changedTask && changedTask.code && !changedTask.code.startsWith('row-')) {
+                            const response = await fetch('/api/roadmap/update-task', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    task_code: changedTask.code,
+                                    start_date: changedTask.start_date,
+                                    finish_date: changedTask.finish_date,
+                                    actual_start: changedTask.actual_start,
+                                    actual_finish: changedTask.actual_finish,
+                                    status: changedTask.status,
+                                    note: changedTask.note,
+                                    is_active: changedTask.is_active
+                                })
+                            });
+                        }
+                        lastSaved.value = new Date();
+                    } catch (err) {
+                        console.error("Error saving data:", err);
+                    } finally {
+                        setTimeout(() => { isSaving.value = false; }, 500);
+                    }
+                };
+
+                const markAsChanged = (task = null) => { 
+                    updateTrigger.value++; 
+                    commitChanges(task);
+                    if (window.lucide) setTimeout(() => lucide.createIcons(), 0); 
+                };
+                
+                const cleanAnyDate = (v) => { const s = String(v || '').trim(); return (s.includes('Date(') || s === '' || s.toLowerCase() === 'null') ? '' : s; };
+
+                const fetchData = async () => {
+                    try {
+                        const url = `https://docs.google.com/spreadsheets/d/15-yqkFgNeMDsLyTqX0sIWwobGUWeqyu67-5vXNpu2Tk/gviz/tq?tqx=out:json&gid=1119678833&t=${Date.now()}`;
+                        const res = await fetch(url); const txt = await res.text();
+                        const data = JSON.parse(txt.substring(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
+                        const phasesMap = {};
+                        if (data.table && data.table.rows) {
+                            let last = {};
+                            const rows = data.table.rows;
+                            const ld = JSON.parse(localStorage.getItem('roadmap_local_data') || '{}');
+                            rows.forEach((r, idx) => {
+                                const rawCode = String(r.c[3]?.v || '').trim(); 
+                                const name = String(r.c[4]?.v || '').trim();
+                                if ((!rawCode || rawCode === 'CODE') && !name) return;
+                                
+                                const code = rawCode || `row-${idx}`;
+                                const sv = ld[code] || {};
+                                const task = { 
+                                    code: code, 
+                                    name: name || 'Unnamed Task', 
+                                    start_date: cleanAnyDate(sv.start_date !== undefined ? sv.start_date : (r.c[5] ? r.c[5].f || r.c[5].v : '')), 
+                                    finish_date: cleanAnyDate(sv.finish_date !== undefined ? sv.finish_date : (r.c[6] ? r.c[6].f || r.c[6].v : '')), 
+                                    actual_start: cleanAnyDate(sv.actual_start !== undefined ? sv.actual_start : (r.c[8] ? r.c[8].f || r.c[8].v : '')), 
+                                    actual_finish: cleanAnyDate(sv.actual_finish !== undefined ? sv.actual_finish : (r.c[9] ? r.c[9].f || r.c[9].v : '')), 
+                                    status: sv.status || (r.c[13] ? r.c[13].v : (r.c[11] ? r.c[11].v : 'Scheduled')), 
+                                    note: sv.note || (r.c[14] ? r.c[14].v : (r.c[12] ? r.c[12].v : '')), 
+                                    is_active: sv.is_active !== undefined ? sv.is_active : true, 
+                                    sub_tasks: [] 
+                                };
+
+                                const pId = (code.match(/^(\d+)/) || ['1','1'])[1];
+                                const lv = code.split('.').filter(x=>x).length;
+
+                                if (!phasesMap[pId]) phasesMap[pId] = { code: pId, name: `Phase ${pId}`, tasks: [], isCollapsed: false };
+                                
+                                if (lv === 1 || (!rawCode && name && !last[1])) { 
+                                    phasesMap[pId].name = `Phase ${pId}`; 
+                                    last[1] = phasesMap[pId]; 
+                                }
+                                else if (lv === 2 || (!rawCode && name && last[1])) { 
+                                    phasesMap[pId].tasks.push(task); 
+                                    last[2] = task; 
+                                }
+                                else if (lv > 2) { 
+                                    const p = last[lv-1] || last[2]; 
+                                    if (p && p.sub_tasks) { p.sub_tasks.push(task); last[lv] = task; } 
+                                    else { phasesMap[pId].tasks.push(task); last[2] = task; }
+                                }
+                            });
+                            // Inject custom subtasks from local storage
+                            Object.values(ld).forEach(sv => {
+                                if (sv.parent_code && sv.is_active !== false) {
+                                    Object.values(phasesMap).forEach(p => {
+                                        const parentTask = p.tasks.find(t => t.code === sv.parent_code);
+                                        if (parentTask) {
+                                            if (!parentTask.sub_tasks) parentTask.sub_tasks = [];
+                                            if (!parentTask.sub_tasks.find(st => st.code === sv.code)) {
+                                                parentTask.sub_tasks.push({
+                                                    code: sv.code, name: sv.name || 'Custom Subtask',
+                                                    start_date: sv.start_date || '', finish_date: sv.finish_date || '',
+                                                    actual_start: sv.actual_start || '', actual_finish: sv.actual_finish || '',
+                                                    status: sv.status || 'Scheduled', note: sv.note || '',
+                                                    is_active: true, parent_code: sv.parent_code
+                                                });
+                                            }
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                        
+                        roadmap.value = { project_name: "Project Roadmap : Fortunasuite Malioboro", phases: Object.values(phasesMap).sort((a, b) => parseInt(a.code) - parseInt(b.code)) };
+                        if (window.lucide) setTimeout(() => lucide.createIcons(), 0);
+                    } catch (e) { console.error("Error fetching data:", e); }
+                };
+
+                onMounted(() => {
+                    const savedPeriod = JSON.parse(localStorage.getItem('roadmap_period') || 'null');
+                    if (savedPeriod) { startMonth.value = savedPeriod.startMonth; endMonth.value = savedPeriod.endMonth; currentYear.value = savedPeriod.currentYear; }
+                    fetchData();
+                });
+                return { roadmap, updateTrigger, isSaving, lastSaved, months, currentYear, startMonth, endMonth, daysInPeriod, monthGroups, filteredPhases, getDayClass, getStatusClass, getBarStatusClass, getBarStyle, markAsChanged, commitChanges, calculateDays, calculatePhaseProgress, calculatePhaseTotalDays, calculateGrandTotalProgress, grandTotalStyle, getPhaseCardStyle, activeCommentTask, parsedActiveComments, newComment, editingCommentIndex, getCommentCount, openCommentModal, closeCommentModal, cancelEdit, saveNewComment, editComment, deleteComment, activeManageTask, groupedSubtasks, toggleSubtask, openSubtaskManager, closeSubtaskManager };
+            }
+        }).directive('datepicker', {
+            mounted(el, binding) { const fp = flatpickr(el, { dateFormat: "d/m/Y", onChange: (s, ds) => { el.value = ds; el.dispatchEvent(new Event('input', { bubbles: true })); } }); el._fp = fp; },
+            updated(el, binding) { if (el._fp && binding.value !== binding.oldValue) { el._fp.setDate(binding.value || '', false); } }
+        }).mount('#app');
+    </script>
+</body>
+</html>
