@@ -1,7 +1,9 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from models import Roadmap, Phase, Task, UserRole, TaskUpdate
+from pathlib import Path
+from .models import Roadmap, Phase, Task, UserRole, TaskUpdate
 from typing import List
 
 app = FastAPI(title="Roadmap API")
@@ -14,7 +16,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/roadmap", StaticFiles(directory="frontend", html=True), name="frontend")
+static_dir = Path(__file__).parent.parent / "frontend"
+app.mount("/roadmap", StaticFiles(directory=str(static_dir), html=True), name="frontend")
+
+@app.get("/", include_in_schema=False)
+async def root_redirect():
+    return RedirectResponse(url="/roadmap")
 
 # Global data storage (in-memory for demo)
 ROADMAP_DATA = {

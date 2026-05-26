@@ -17,7 +17,7 @@
             --brand-blue: #15a4dc;
             --sidebar-w: 435px;
         }
-        body { font-family: 'Outfit', sans-serif; background-color: #f8fafc; color: #1e293b; overflow: hidden; font-size: 11px; }
+        body { font-family: 'Arial', sans-serif; background-color: #f8fafc; color: #1e293b; overflow: hidden; font-size: 11px; }
         
         .gantt-container { width: 100%; height: calc(100vh - 180px); background: white; border-radius: 20px; border: 1px solid #e2e8f0; position: relative; overflow: auto; scroll-behavior: smooth; }
         .task-list-wrapper { display: inline-flex; flex-direction: column; min-width: 100%; position: relative; }
@@ -39,26 +39,11 @@
         .is-sat { background-color: var(--sat-color) !important; color: white !important; }
         .is-sun { background-color: var(--sun-color) !important; color: white !important; }
 
-        /* 50:50 Bar System & Dragging UI */
-        .bar-container { position: relative; height: 100%; width: 100%; display: flex; flex-direction: column; justify-content: space-evenly; }
-        .bar-planned { height: 7px !important; position: absolute; top: 4px !important; z-index: 10; background-color: #cbd5e1 !important; pointer-events: auto; opacity: 1; border-radius: 4px !important; cursor: grab; }
-        .bar-planned:active { cursor: grabbing; }
-        .bar-actual { height: 7px !important; position: absolute; top: 14px !important; z-index: 20; pointer-events: auto; border-radius: 4px !important; opacity: 1; cursor: grab; }
-        .bar-actual:active { cursor: grabbing; }
+        /* 50:50 Bar System */
+        .bar-planned { height: 12.5px; position: absolute; top: 0; z-index: 10; background: #e2e8f0; pointer-events: none; opacity: 1; border-radius: 0; }
+        .bar-actual { height: 12.5px; position: absolute; top: 12.5px; z-index: 20; pointer-events: none; border-radius: 0; opacity: 1; }
         
-        /* Blank / Placeholder Bar style */
-        .bar-placeholder-planned { height: 7px !important; position: absolute; top: 4px !important; left: 0; right: 0; width: 100%; z-index: 5; border: 1px dashed #cbd5e1; background-color: rgba(226, 232, 240, 0.3); border-radius: 4px; cursor: pointer; }
-        .bar-placeholder-actual { height: 7px !important; position: absolute; top: 14px !important; left: 0; right: 0; width: 100%; z-index: 5; border: 1px dashed #94a3b8; background-color: rgba(241, 245, 249, 0.4); border-radius: 4px; cursor: pointer; }
-
-        /* Drag Handles */
-        .drag-handle-l, .drag-handle-r { position: absolute; top: -2px; width: 6px; height: 11px; background: rgba(30, 41, 59, 0.85); border-radius: 2px; cursor: ew-resize; z-index: 35; opacity: 0; transition: opacity 0.15s; }
-        .bar-planned:hover .drag-handle-l, .bar-planned:hover .drag-handle-r,
-        .bar-actual:hover .drag-handle-l, .bar-actual:hover .drag-handle-r { opacity: 1; }
-        .drag-handle-l { left: 0; }
-        .drag-handle-r { right: 0; }
-        
-        .glass-task-badge { background: rgba(30, 41, 59, 0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.15); color: #ffffff; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 12px; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.8); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); pointer-events: none; z-index: 30; }
-        .glass-task-badge.is-short-bar { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; border: none; color: #1e293b; text-shadow: none; box-shadow: none; font-weight: 600; padding-left: 8px; }
+        .glass-task-badge { background: rgba(30, 41, 59, 0.65); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.15); color: #ffffff; font-size: 9px; font-weight: 700; padding: 2.5px 8px; border-radius: 20px; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.8); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); pointer-events: none; z-index: 30; }
         
         .bar-completed { background-color: var(--color-completed) !important; }
         .bar-scheduled { background-color: var(--color-scheduled) !important; }
@@ -223,39 +208,9 @@
                                 
                                 <div class="col-fix w-sts border-l border-slate-100" :class="getStatusClass(task.status)"><select v-model="task.status" @change="markAsChanged(task)" class="custom-select" :class="getStatusClass(task.status)"><option value="Scheduled">Scheduled</option><option value="On Progress">On Progress</option><option value="Completed">Completed</option></select></div>
                                 <div class="col-fix w-not border-l border-slate-100 px-2 cursor-pointer" @click="openCommentModal(task)"><input :value="task.note" readonly class="w-full bg-transparent border-none text-slate-500 italic text-[10px] font-medium cursor-pointer" placeholder="Klik untuk komentar..."></div>
-                                
-                                <div class="flex relative overflow-hidden h-[25px] w-full"
-                                      @mousedown="onDragStart($event, task, 'planned')">
-                                     <div v-for="d in daysInPeriod" :key="d.date" class="col-fix w-tic border-l border-slate-100 h-full pointer-events-none" :class="getDayClass(d)"></div>
-                                     
-                                     <!-- Placeholder jika Planned/Scheduled Date kosong -->
-                                     <div v-if="!task.start_date && task.is_active" class="bar-placeholder-planned" title="Tarik atau klik untuk mengisi tanggal Scheduled" @mousedown.stop="onPlaceholderStart($event, task, 'planned')"></div>
-                                     <!-- Placeholder jika Actual Date kosong -->
-                                     <div v-if="!task.actual_start && task.is_active" class="bar-placeholder-actual" title="Tarik atau klik untuk mengisi tanggal Actual" @mousedown.stop="onPlaceholderStart($event, task, 'actual')"></div>
-                                     
-                                     <!-- Bar Planned/Scheduled -->
-                                     <div v-if="task.start_date && task.is_active" class="bar-planned flex items-center justify-between" :style="getBarStyle(task.start_date, task.finish_date) || {display: 'none'}" @mousedown.stop="onDragStart($event, task, 'planned')">
-                                         <div class="drag-handle-l" @mousedown.stop="onResizeStart($event, task, 'planned', 'left')"></div>
-                                         <div class="drag-handle-r" @mousedown.stop="onResizeStart($event, task, 'planned', 'right')"></div>
-                                     </div>
-                                     
-                                     <!-- Bar Actual -->
-                                     <div v-if="task.actual_start && task.is_active" class="bar-actual flex items-center justify-between" :class="getBarStatusClass(task.status)" :style="getBarStyle(task.actual_start, task.actual_finish || task.actual_start) || {display: 'none'}" @mousedown.stop="onDragStart($event, task, 'actual')">
-                                         <div class="drag-handle-l" @mousedown.stop="onResizeStart($event, task, 'actual', 'left')"></div>
-                                         <div class="drag-handle-r" @mousedown.stop="onResizeStart($event, task, 'actual', 'right')"></div>
-                                     </div>
-                                     
-                                     <!-- Label Deskripsi Task (Responsive: Pindah ke Kanan jika bar terlalu pendek) -->
-                                     <div v-if="task.start_date && task.is_active" 
-                                          class="absolute top-0 bottom-0 z-30 flex items-center pointer-events-none" 
-                                          :style="getBadgeStyle(task.start_date, task.finish_date)">
-                                         <div class="glass-task-badge" :class="{'is-short-bar': isShortBar(task.start_date, task.finish_date)}">
-                                             {{ task.name }}
-                                         </div>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
+                                <div class="flex relative overflow-hidden"><div v-for="d in daysInPeriod" :key="d.date" class="col-fix w-tic border-l border-slate-100" :class="getDayClass(d)"></div><div v-if="task.start_date && task.is_active" class="bar-planned" :style="getBarStyle(task.start_date, task.finish_date)  || {display: 'none'}"></div><div v-if="task.is_active" class="bar-actual" :class="getBarStatusClass(task.status)" :style="getBarStyle(task.actual_start || task.start_date, task.actual_finish || task.finish_date)  || {display: 'none'}"></div><div v-if="task.start_date && task.is_active" class="absolute top-0 bottom-0 z-30 flex items-center justify-center pointer-events-none" :style="getBarStyle(task.start_date, task.finish_date) || {display: 'none'}"><div class="glass-task-badge">{{ task.name }}</div></div></div>
+                            </div>
+                        </div>
                         <template v-if="task.sub_tasks && task.sub_tasks.length > 0">
                             <template v-for="(subTask, subIdx) in task.sub_tasks" :key="subTask.code">
                                 <div v-show="!phase.isCollapsed && subTask.is_active" class="task-row bg-slate-50/50">
@@ -273,37 +228,7 @@
                                         
                                         <div class="col-fix w-sts border-l border-slate-100" :class="getStatusClass(subTask.status)"><select v-model="subTask.status" @change="markAsChanged(subTask)" class="custom-select" :class="getStatusClass(subTask.status)"><option value="Scheduled">Scheduled</option><option value="On Progress">On Progress</option><option value="Completed">Completed</option></select></div>
                                         <div class="col-fix w-not border-l border-slate-100 px-2 cursor-pointer" @click="openCommentModal(subTask)"><input :value="subTask.note" readonly class="w-full bg-transparent border-none text-slate-500 italic text-[10px] font-medium cursor-pointer" placeholder="Klik untuk komentar..."></div>
-                                        
-                                        <div class="flex relative overflow-hidden h-[25px] w-full"
-                                              @mousedown="onDragStart($event, subTask, 'planned')">
-                                             <div v-for="d in daysInPeriod" :key="d.date" class="col-fix w-tic border-l border-slate-100 h-full pointer-events-none" :class="getDayClass(d)"></div>
-                                             
-                                             <!-- Placeholder jika Planned/Scheduled Date kosong -->
-                                             <div v-if="!subTask.start_date && subTask.is_active" class="bar-placeholder-planned" title="Tarik atau klik untuk mengisi tanggal Scheduled" @mousedown.stop="onPlaceholderStart($event, subTask, 'planned')"></div>
-                                             <!-- Placeholder jika Actual Date kosong -->
-                                             <div v-if="!subTask.actual_start && subTask.is_active" class="bar-placeholder-actual" title="Tarik atau klik untuk mengisi tanggal Actual" @mousedown.stop="onPlaceholderStart($event, subTask, 'actual')"></div>
-                                             
-                                             <!-- Bar Planned/Scheduled -->
-                                             <div v-if="subTask.start_date && subTask.is_active" class="bar-planned flex items-center justify-between" :style="getBarStyle(subTask.start_date, subTask.finish_date) || {display: 'none'}" @mousedown.stop="onDragStart($event, subTask, 'planned')">
-                                                 <div class="drag-handle-l" @mousedown.stop="onResizeStart($event, subTask, 'planned', 'left')"></div>
-                                                 <div class="drag-handle-r" @mousedown.stop="onResizeStart($event, subTask, 'planned', 'right')"></div>
-                                             </div>
-                                             
-                                             <!-- Bar Actual -->
-                                             <div v-if="subTask.actual_start && subTask.is_active" class="bar-actual flex items-center justify-between" :class="getBarStatusClass(subTask.status)" :style="getBarStyle(subTask.actual_start, subTask.actual_finish || subTask.actual_start) || {display: 'none'}" @mousedown.stop="onDragStart($event, subTask, 'actual')">
-                                                 <div class="drag-handle-l" @mousedown.stop="onResizeStart($event, subTask, 'actual', 'left')"></div>
-                                                 <div class="drag-handle-r" @mousedown.stop="onResizeStart($event, subTask, 'actual', 'right')"></div>
-                                             </div>
-                                             
-                                             <!-- Label Deskripsi Sub-Task (Responsive) -->
-                                             <div v-if="subTask.start_date && subTask.is_active" 
-                                                  class="absolute top-0 bottom-0 z-30 flex items-center pointer-events-none" 
-                                                  :style="getBadgeStyle(subTask.start_date, subTask.finish_date)">
-                                                 <div class="glass-task-badge" :class="{'is-short-bar': isShortBar(subTask.start_date, subTask.finish_date)}">
-                                                     {{ subTask.name }}
-                                                 </div>
-                                             </div>
-                                         </div>
+                                        <div class="flex relative overflow-hidden"><div v-for="d in daysInPeriod" :key="d.date" class="col-fix w-tic border-l border-slate-100" :class="getDayClass(d)"></div><div v-if="subTask.start_date && subTask.is_active" class="bar-planned" :style="getBarStyle(subTask.start_date, subTask.finish_date)  || {display: 'none'}"></div><div v-if="subTask.is_active" class="bar-actual" :class="getBarStatusClass(subTask.status)" :style="getBarStyle(subTask.actual_start || subTask.start_date, subTask.actual_finish || subTask.finish_date)  || {display: 'none'}"></div><div v-if="subTask.start_date && subTask.is_active" class="absolute top-0 bottom-0 z-30 flex items-center justify-center pointer-events-none" :style="getBarStyle(subTask.start_date, subTask.finish_date) || {display: 'none'}"><div class="glass-task-badge">{{ subTask.name }}</div></div></div>
                                     </div>
                                 </div>
                             </template>
@@ -575,23 +500,29 @@
                 const calculateGrandTotalProgress = () => { let a = 0, s = 0; if (roadmap.value.phases) filteredPhases.value.forEach(p => p.tasks.forEach(tk => { const st = getItemStats(tk); a += st.actual; s += st.scheduled; })); return s ? (a / s) * 100 : 0; };
 
                 const daysInPeriod = computed(() => {
-                    let sMonth = startMonth.value;
-                    let eMonth = endMonth.value;
-                    if (eMonth < sMonth) {
-                        eMonth = sMonth;
+                    let start = new Date(Date.UTC(currentYear.value, startMonth.value, 1));
+                    let minDate = new Date(start);
+                    let maxDate = new Date(Date.UTC(currentYear.value, startMonth.value + 1, 0));
+                    const checkRange = (t) => {
+                        if (!t.is_active) return;
+                        [t.start_date, t.finish_date, t.actual_start, t.actual_finish].forEach(v => {
+                            const d = parseAnyDate(v);
+                            if (d) {
+                                if (d < minDate) minDate = new Date(d);
+                                if (d > maxDate) maxDate = new Date(d);
+                            }
+                        });
+                        if (t.sub_tasks) t.sub_tasks.forEach(checkRange);
+                    };
+                    if (roadmap.value.phases) {
+                        roadmap.value.phases.forEach(p => p.tasks.forEach(checkRange));
                     }
-                    const finalStart = new Date(Date.UTC(currentYear.value, sMonth, 1));
-                    const finalEnd = new Date(Date.UTC(currentYear.value, eMonth + 1, 0));
+                    const finalStart = new Date(Date.UTC(minDate.getUTCFullYear(), minDate.getUTCMonth(), 1));
+                    const finalEnd = new Date(Date.UTC(maxDate.getUTCFullYear(), maxDate.getUTCMonth() + 1, 0));
                     const days = []; 
                     let curr = new Date(finalStart);
                     while (curr <= finalEnd) {
-                        days.push({ 
-                            date: `${curr.getUTCFullYear()}-${String(curr.getUTCMonth()+1).padStart(2,'0')}-${String(curr.getUTCDate()).padStart(2,'0')}`, 
-                            dayNum: curr.getUTCDate(), 
-                            weekday: curr.getUTCDay(), 
-                            month: curr.getUTCMonth(), 
-                            year: curr.getUTCFullYear() 
-                        });
+                        days.push({ date: `${curr.getUTCFullYear()}-${String(curr.getUTCMonth()+1).padStart(2,'0')}-${String(curr.getUTCDate()).padStart(2,'0')}`, dayNum: curr.getUTCDate(), weekday: curr.getUTCDay(), month: curr.getUTCMonth(), year: curr.getUTCFullYear() });
                         curr.setUTCDate(curr.getUTCDate() + 1);
                     }
                     return days;
@@ -603,10 +534,6 @@
                     daysInPeriod.value.forEach(d => { if (d.month !== curM || d.year !== curY) { curM = d.month; curY = d.year; curG = { name: months[d.month], year: d.year, daysCount: 0 }; groups.push(curG); } curG.daysCount++; });
                     return groups;
                 });
-
-                const getDayClass = (d) => (d.weekday === 0 ? 'is-sun' : d.weekday === 6 ? 'is-sat' : '');
-                const getStatusClass = (s) => (s === 'Completed' ? 'status-completed' : s === 'On Progress' ? 'status-progress' : s === 'Scheduled' ? 'status-scheduled' : 'status-none');
-                const getBarStatusClass = (s) => (s === 'Completed' ? 'bar-completed' : s === 'On Progress' ? 'bar-progress' : s === 'Scheduled' ? 'bar-scheduled' : 'status-none');
 
                 const filteredPhases = computed(() => roadmap.value.phases || []);
 
@@ -645,196 +572,10 @@
                     return { top: (topOffset + 4) + 'px', left: left + 'px', width: cardW + 'px', height: (height - 8) + 'px', position: 'absolute', zIndex: 1000 };
                 };
 
-                // Drag & Resize state tracking
-                let dragInfo = null;
-
-                const isShortBar = (s, f) => {
-                    const sd = parseAnyDate(s); let fd = parseAnyDate(f); if (!sd) return true;
-                    if (!fd) fd = sd;
-                    const dur = Math.floor((fd.getTime() - sd.getTime()) / 86400000) + 1;
-                    return (dur * 30) < 120;
-                };
-
-                const getBadgeStyle = (s, f) => {
-                    const style = getBarStyle(s, f);
-                    if (!style) return { display: 'none' };
-                    const leftPx = parseInt(style.left);
-                    const widthPx = parseInt(style.width);
-                    if (widthPx < 120) {
-                        return { left: (leftPx + widthPx) + 'px', width: 'auto', justifyContent: 'flex-start' };
-                    }
-                    return { left: leftPx + 'px', width: widthPx + 'px', justifyContent: 'center' };
-                };
-
-                // Helper to format date back to DD/MM/YYYY
-                const formatDateToDDMMYYYY = (date) => {
-                    const d = date.getUTCDate();
-                    const m = date.getUTCMonth() + 1;
-                    const y = date.getUTCFullYear();
-                    return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
-                };
-
-                // Helper to convert clientX to Date based on Gantt grid
-                const getDateFromX = (x, containerEl) => {
-                    const rect = containerEl.getBoundingClientRect();
-                    const scrollLeft = containerEl.scrollLeft;
-                    const relativeX = x - rect.left + scrollLeft;
-                    const colIndex = Math.floor(relativeX / 30);
-                    if (colIndex >= 0 && colIndex < daysInPeriod.value.length) {
-                        return daysInPeriod.value[colIndex].date;
-                    }
-                    return null;
-                };
-
-                const onPlaceholderStart = (event, task, type) => {
-                    if (event.button !== 0) return; // Only left click
-                    event.preventDefault();
-                    const container = event.currentTarget.parentElement;
-                    const dateStr = getDateFromX(event.clientX, container);
-                    if (!dateStr) return;
-                    
-                    const [y, m, d] = dateStr.split('-').map(Number);
-                    const dateFormatted = `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
-
-                    if (type === 'planned') {
-                        task.start_date = dateFormatted;
-                        task.finish_date = dateFormatted;
-                    } else {
-                        task.actual_start = dateFormatted;
-                        task.actual_finish = dateFormatted;
-                    }
-                    
-                    const parsedDate = parseAnyDate(dateFormatted);
-                    
-                    dragInfo = {
-                        task,
-                        type,
-                        mode: 'resize',
-                        direction: 'right',
-                        container,
-                        initialX: event.clientX,
-                        d1: parsedDate,
-                        d2: parsedDate
-                    };
-                    
-                    document.addEventListener('mousemove', onDragOver);
-                    document.addEventListener('mouseup', onDragEnd);
-                    
-                    markAsChanged(task);
-                };
-
-                const onDragStart = (event, task, type) => {
-                    if (event.button !== 0) return; // Only left click
-                    event.preventDefault();
-                    const container = event.currentTarget.parentElement;
-                    
-                    let startVal = type === 'planned' ? task.start_date : task.actual_start;
-                    let finishVal = type === 'planned' ? task.finish_date : (task.actual_finish || task.actual_start);
-                    
-                    if (!startVal) return;
-                    if (!finishVal) finishVal = startVal;
-                    
-                    const d1 = parseAnyDate(startVal);
-                    const d2 = parseAnyDate(finishVal);
-                    
-                    dragInfo = {
-                        task,
-                        type,
-                        mode: 'move',
-                        container,
-                        initialX: event.clientX,
-                        d1,
-                        d2,
-                        durationDays: Math.floor((d2.getTime() - d1.getTime()) / 86400000)
-                    };
-                    
-                    document.addEventListener('mousemove', onDragOver);
-                    document.addEventListener('mouseup', onDragEnd);
-                };
-
-                const onResizeStart = (event, task, type, direction) => {
-                    if (event.button !== 0) return; // Only left click
-                    event.preventDefault();
-                    const container = event.currentTarget.parentElement.parentElement;
-                    
-                    let startVal = type === 'planned' ? task.start_date : task.actual_start;
-                    let finishVal = type === 'planned' ? task.finish_date : (task.actual_finish || task.actual_start);
-                    
-                    dragInfo = {
-                        task,
-                        type,
-                        mode: 'resize',
-                        direction,
-                        container,
-                        initialX: event.clientX,
-                        d1: parseAnyDate(startVal),
-                        d2: parseAnyDate(finishVal)
-                    };
-                    
-                    document.addEventListener('mousemove', onDragOver);
-                    document.addEventListener('mouseup', onDragEnd);
-                };
-
-                const onDragOver = (event) => {
-                    if (!dragInfo) return;
-                    event.preventDefault();
-                    
-                    const { task, type, mode, direction, container, initialX, d1, d2, durationDays } = dragInfo;
-                    const deltaX = event.clientX - initialX;
-                    const deltaDays = Math.round(deltaX / 30);
-                    
-                    if (mode === 'move') {
-                        const newD1 = new Date(d1.getTime() + deltaDays * 86400000);
-                        const newD2 = new Date(d2.getTime() + deltaDays * 86400000);
-                        
-                        const sStr = formatDateToDDMMYYYY(newD1);
-                        const fStr = formatDateToDDMMYYYY(newD2);
-                        
-                        if (type === 'planned') {
-                            task.start_date = sStr;
-                            task.finish_date = fStr;
-                        } else {
-                            task.actual_start = sStr;
-                            task.actual_finish = fStr;
-                        }
-                    } else if (mode === 'resize') {
-                        if (direction === 'left') {
-                            const newD1 = new Date(d1.getTime() + deltaDays * 86400000);
-                            // Prevent start going past finish
-                            if (newD1 <= d2) {
-                                const sStr = formatDateToDDMMYYYY(newD1);
-                                if (type === 'planned') {
-                                    task.start_date = sStr;
-                                } else {
-                                    task.actual_start = sStr;
-                                }
-                            }
-                        } else if (direction === 'right') {
-                            const newD2 = new Date(d2.getTime() + deltaDays * 86400000);
-                            // Prevent finish going before start
-                            if (newD2 >= d1) {
-                                const fStr = formatDateToDDMMYYYY(newD2);
-                                if (type === 'planned') {
-                                    task.finish_date = fStr;
-                                } else {
-                                    task.actual_finish = fStr;
-                                }
-                            }
-                        }
-                    }
-                    updateTrigger.value++;
-                };
-
-                const onDragEnd = (event) => {
-                    if (!dragInfo) return;
-                    document.removeEventListener('mousemove', onDragOver);
-                    document.removeEventListener('mouseup', onDragEnd);
-                    
-                    const task = dragInfo.task;
-                    dragInfo = null;
-                    markAsChanged(task);
-                };
-
+                const getDayClass = (d) => (d.weekday === 0 ? 'is-sun' : d.weekday === 6 ? 'is-sat' : '');
+                const getStatusClass = (s) => (s === 'Completed' ? 'status-completed' : s === 'On Progress' ? 'status-progress' : s === 'Scheduled' ? 'status-scheduled' : 'status-none');
+                const getBarStatusClass = (s) => (s === 'Completed' ? 'bar-completed' : s === 'On Progress' ? 'bar-progress' : s === 'Scheduled' ? 'bar-scheduled' : 'status-none');
+                
                 const getBarStyle = (s, f) => {
                     const sd = parseAnyDate(s); let fd = parseAnyDate(f); if (!sd || daysInPeriod.value.length === 0) return null;
                     if (!fd) fd = sd;
@@ -981,20 +722,11 @@
                     if (savedPeriod) { startMonth.value = savedPeriod.startMonth; endMonth.value = savedPeriod.endMonth; currentYear.value = savedPeriod.currentYear; }
                     fetchData();
                 });
-                return { 
-                    roadmap, updateTrigger, isSaving, lastSaved, months, currentYear, startMonth, endMonth, 
-                    daysInPeriod, monthGroups, filteredPhases, getDayClass, getStatusClass, getBarStatusClass, 
-                    getBarStyle, markAsChanged, commitChanges, calculateDays, calculatePhaseProgress, 
-                    calculatePhaseTotalDays, calculateGrandTotalProgress, grandTotalStyle, getPhaseCardStyle, 
-                    activeCommentTask, parsedActiveComments, newComment, editingCommentIndex, getCommentCount, 
-                    openCommentModal, closeCommentModal, cancelEdit, saveNewComment, editComment, deleteComment, 
-                    activeManageTask, groupedSubtasks, toggleSubtask, openSubtaskManager, closeSubtaskManager,
-                    onDragStart, onDragOver, onDragEnd, onResizeStart, onPlaceholderStart, isShortBar, getBadgeStyle
-                };
+                return { roadmap, updateTrigger, isSaving, lastSaved, months, currentYear, startMonth, endMonth, daysInPeriod, monthGroups, filteredPhases, getDayClass, getStatusClass, getBarStatusClass, getBarStyle, markAsChanged, commitChanges, calculateDays, calculatePhaseProgress, calculatePhaseTotalDays, calculateGrandTotalProgress, grandTotalStyle, getPhaseCardStyle, activeCommentTask, parsedActiveComments, newComment, editingCommentIndex, getCommentCount, openCommentModal, closeCommentModal, cancelEdit, saveNewComment, editComment, deleteComment, activeManageTask, groupedSubtasks, toggleSubtask, openSubtaskManager, closeSubtaskManager };
             }
         }).directive('datepicker', {
             mounted(el, binding) { const fp = flatpickr(el, { dateFormat: "d/m/Y", onChange: (s, ds) => { el.value = ds; el.dispatchEvent(new Event('input', { bubbles: true })); } }); el._fp = fp; },
-            updated(el) { if (el._fp && el.value !== el._fp.input.value) { el._fp.setDate(el.value || '', false); } }
+            updated(el, binding) { if (el._fp && binding.value !== binding.oldValue) { el._fp.setDate(binding.value || '', false); } }
         }).mount('#app');
     </script>
 </body>
